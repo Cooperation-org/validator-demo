@@ -45,3 +45,35 @@ export async function getClaimsBySubject(uri: string): Promise<SubjectClaims> {
     total: body.pagination?.total ?? 0,
   };
 }
+
+// POST /api/testimonial-requests — an invite link, authenticated as this app's
+// registered LinkedTrust client. Whoever answers the link writes a claim with
+// subject = subjectUri.
+export async function createTestimonialRequest(request: {
+  subjectUri: string;
+  subjectName?: string;
+  recipientName?: string;
+  note?: string;
+  requesterName?: string;
+}): Promise<{ token: string; url: string; id: number }> {
+  const clientId = process.env.LINKEDTRUST_CLIENT_ID;
+  const clientSecret = process.env.LINKEDTRUST_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'LINKEDTRUST_CLIENT_ID and LINKEDTRUST_CLIENT_SECRET must be set',
+    );
+  }
+  const response = await fetch(`${apiBase()}/api/testimonial-requests`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lt-client-id': clientId,
+      'x-lt-client-secret': clientSecret,
+    },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    throw new Error(`LinkedTrust invite failed: HTTP ${response.status}`);
+  }
+  return response.json();
+}

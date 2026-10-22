@@ -38,6 +38,7 @@ Per generated root `AGENTS.md`, check `node_modules/@modern-js/app-tools/docs/ll
 - `api/_lib/`: server-only helpers, not routed.
 - Config: `.env` (copy `.env.example`). Never imported by `src/`.
 
-| Endpoint                    | Does                                                                            | Reuses                                             |
-| --------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `GET /api/candidate?email=` | All LinkedClaims about `mailto:<email>`, including identities linked by SAME_AS | trust_claim_backend `GET /api/claims/subject/:uri` |
+| Endpoint                    | Does                                                                                                                                                                               | Reuses                                                                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/candidate?email=` | All LinkedClaims about `mailto:<email>`, including identities linked by SAME_AS                                                                                                    | trust_claim_backend `GET /api/claims/subject/:uri`                                                                        |
+| `POST /api/endorsements`    | Creates a LinkedTrust testimonial request about `mailto:<candidateEmail>`, emails the link to the reference. The reference's answer is an `is_vouched_for` claim with that subject | trust_claim_backend `POST /api/testimonial-requests` + its `/t/:token` answer page; SMTP env names from validator-service |
