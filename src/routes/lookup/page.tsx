@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useSearchParams } from '@modern-js/runtime/router';
+import { Link, useSearchParams } from '@modern-js/runtime/router';
 import { getCandidate } from '@api/candidate';
 import {
   Card,
@@ -55,6 +55,14 @@ export default function LookupPage() {
       eyebrow="Validator demo"
       title="Look up a candidate"
       intro="What has been verified for an email address."
+      back={
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+        >
+          <span aria-hidden="true">←</span> Back to verification form
+        </Link>
+      }
     >
       <Card>
         <form onSubmit={submit} className="space-y-4">
@@ -71,7 +79,7 @@ export default function LookupPage() {
           </label>
           <button
             type="submit"
-            className={primaryButtonClass}
+            className={`${primaryButtonClass} sm:w-auto sm:px-8`}
             disabled={loading}
           >
             {loading ? 'Looking up…' : 'Look up'}

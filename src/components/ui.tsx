@@ -10,16 +10,20 @@ export function PageShell({
   eyebrow,
   title,
   intro,
+  back,
   children,
 }: {
   eyebrow: string;
   title: string;
   intro?: ReactNode;
+  // Rendered above the heading, e.g. a link back to the previous page.
+  back?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:py-16">
       <div className="mx-auto max-w-2xl">
+        {back ? <div className="mb-6">{back}</div> : null}
         <header className="mb-8">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">
             {eyebrow}
