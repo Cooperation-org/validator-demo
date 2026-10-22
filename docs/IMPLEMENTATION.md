@@ -60,3 +60,16 @@ Per generated root `AGENTS.md`, check `node_modules/@modern-js/app-tools/docs/ll
 - `/verify/:token`: organization-email confirmation (a button, so mail scanners opening the link do not use it).
 - `/endorse/:token`: reference answer page.
 - `/lookup?email=`: what is recorded for a candidate email.
+
+## Deploy (demos.linkedtrust.us/validator-demo/)
+
+Runs on the shared dev VM from `/opt/shared/repos/validator-demo`, port 3060.
+
+```sh
+cd /opt/shared/repos/validator-demo && git pull && npm ci
+set -a && . ./.env && set +a && npm run build   # .env sets APP_BASE_PATH=/validator-demo
+sudo systemctl restart tmp-validator-demo
+```
+
+- `deploy/tmp-validator-demo.service`: systemd unit (`modern serve`, `.env` as EnvironmentFile).
+- `deploy/nginx-validator-demo.conf`: goes to `/etc/nginx/app-proxies/validator-demo.conf`. Under a prefix the app serves pages at `<prefix>/`, but its API at `/api/` and assets at `/static/`; nginx maps `<prefix>/api/` and `<prefix>/static/` to those. The browser adds the prefix to API calls (`src/bff-client.ts`).

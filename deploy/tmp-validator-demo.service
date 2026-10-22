@@ -1,0 +1,23 @@
+# demos.linkedtrust.us/validator-demo/ on the shared dev VM. Review by 2026-11-22.
+# Install: sudo cp deploy/tmp-validator-demo.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now tmp-validator-demo
+[Unit]
+Description=validator-demo (Modern.js app + BFF) at demos.linkedtrust.us/validator-demo/, review by 2026-11-22
+After=network.target
+
+[Service]
+User=tuna
+Group=devteam
+WorkingDirectory=/opt/shared/repos/validator-demo
+# .env holds APP_URL, DATA_DIR, LINKEDTRUST_*, EMAIL_MODE, SMTP_* (mode 600, not in git)
+EnvironmentFile=/opt/shared/repos/validator-demo/.env
+Environment=NODE_ENV=production
+Environment=PORT=3060
+ExecStart=/opt/shared/repos/validator-demo/node_modules/.bin/modern serve
+Restart=always
+RestartSec=5
+MemoryMax=384M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
