@@ -1,58 +1,116 @@
-import { Api, Data, Post } from '@modern-js/plugin-bff/server';
+import { Api, Data, Get, Params, Post } from '@modern-js/plugin-bff/server';
 import { z } from 'zod';
-import { sendEmail } from '../_lib/email';
-import { createTestimonialRequest, emailSubjectUri } from '../_lib/linkedtrust';
+import { appUrl, linkEmail, sendEmail } from '../_lib/email';
+import {
+  createClaim,
+  createTestimonialRequest,
+  emailSubjectUri,
+  getTestimonialRequest,
+  markResponded,
+} from '../_lib/linkedtrust';
+import { Candidate, TokenParams, email, name } from '../_lib/validation';
 
-const EndorsementRequest = z.object({
-  candidateName: z.string().trim().min(1).max(200),
-  candidateEmail: z.string().trim().email(),
-  organizationName: z.string().trim().min(1).max(200),
-  organizationDomain: z.string().trim().min(1).max(253),
-  referenceName: z.string().trim().min(1).max(200),
-  referenceEmail: z.string().trim().email(),
-});
-
-const escapeHtml = (s: string) =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+const role = (organizationName: string, organizationDomain: string) =>
+  `an administrator of ${organizationName} (${organizationDomain})`;
 
 // POST /api/endorsements
-// Asks the reference, by email, to confirm the candidate's exact email address
-// and role. The link is a LinkedTrust testimonial request; the answer is a
-// LinkedClaim about mailto:<candidateEmail>.
+// Asks a reference, by email, to confirm the candidate's exact email address and
+// role. The invite is a LinkedTrust testimonial request about mailto:<candidateEmail>.
 export const requestEndorsement = Api(
   Post('/endorsements'),
-  Data(EndorsementRequest),
+  Data(
+    Candidate.extend({
+      referenceName: name,
+      referenceEmail: email,
+      note: z.string().trim().max(500).optional(),
+    }),
+  ),
   async ({ data }) => {
-    const candidateEmail = data.candidateEmail.toLowerCase();
-    const question =
-      `Please confirm that ${candidateEmail} is ${data.candidateName}'s email address, ` +
-      `and that ${data.candidateName} is an administrator of ${data.organizationName} (${data.organizationDomain}).`;
-
     const invite = await createTestimonialRequest({
-      subjectUri: emailSubjectUri(candidateEmail),
-      subjectName: `${data.candidateName} (${candidateEmail})`,
+      subjectUri: emailSubjectUri(data.candidateEmail),
+      subjectName: data.candidateName,
       recipientName: data.referenceName,
       requesterName: data.candidateName,
-      note: question,
+      workSummary: role(data.organizationName, data.organizationDomain),
+      note: data.note,
     });
-
-    const subject = `Confirm ${candidateEmail} for ${data.candidateName} at ${data.organizationName}`;
-    const text = `Hi ${data.referenceName},\n\n${question}\n\nAnswer here: ${invite.url}\n`;
-    const html =
-      `<p>Hi ${escapeHtml(data.referenceName)},</p>` +
-      `<p>${escapeHtml(question)}</p>` +
-      `<p><a href="${escapeHtml(invite.url)}">Answer here</a></p>`;
-
-    const sent = await sendEmail({
+    const url = appUrl(`/endorse/${invite.token}`);
+    const email = await sendEmail({
       to: data.referenceEmail,
-      subject,
-      text,
-      html,
+      subject: `Confirm ${data.candidateEmail} for ${data.candidateName} at ${data.organizationName}`,
+      ...linkEmail(
+        `Hi ${data.referenceName},`,
+        [
+          `${data.candidateName} asked us to check two things with you:`,
+          `1. Is ${data.candidateEmail} ${data.candidateName}'s email address?\n` +
+            `2. Is ${data.candidateName} ${role(data.organizationName, data.organizationDomain)}?`,
+          ...(data.note
+            ? [`Note from ${data.candidateName}: ${data.note}`]
+            : []),
+        ],
+        'Answer here',
+        url,
+      ),
     });
-    return { inviteId: invite.id, messageId: sent.messageId };
+    // The link goes only to the reference; returning it would let the candidate answer for them.
+    return { inviteId: invite.id, email };
+  },
+);
+
+// GET /api/endorsements/:token — what the reference is asked to confirm.
+export const getEndorsement = Api(
+  Get('/endorsements/:token'),
+  Params(TokenParams),
+  async ({ params }) => {
+    const invite = await getTestimonialRequest(params.token);
+    if (!invite) return { status: 'not_found' as const };
+    if (invite === 'expired') return { status: 'expired' as const };
+    return {
+      status: invite.responded ? ('answered' as const) : ('open' as const),
+      candidateName: invite.subjectName,
+      candidateEmail: invite.subjectUri.replace(/^mailto:/, ''),
+      role: invite.workSummary,
+      referenceName: invite.recipientName,
+      note: invite.note,
+    };
+  },
+);
+
+// POST /api/endorsements/:token/response
+// Only a yes to both questions becomes a claim: an `is_vouched_for` LinkedClaim
+// about mailto:<candidateEmail>, authored by the reference.
+export const respondToEndorsement = Api(
+  Post('/endorsements/:token/response'),
+  Params(TokenParams),
+  Data(
+    z.object({
+      confirmsEmail: z.boolean(),
+      confirmsRole: z.boolean(),
+      referenceName: name,
+      comment: z.string().trim().max(1000).optional(),
+    }),
+  ),
+  async ({ params, data }) => {
+    const invite = await getTestimonialRequest(params.token);
+    if (!invite) return { status: 'not_found' as const };
+    if (invite === 'expired') return { status: 'expired' as const };
+    if (invite.responded) return { status: 'answered' as const };
+    if (!data.confirmsEmail || !data.confirmsRole)
+      return { status: 'declined' as const };
+
+    const candidateEmail = invite.subjectUri.replace(/^mailto:/, '');
+    const confirmation = `${data.referenceName} confirms that ${candidateEmail} is ${invite.subjectName}'s email address and that ${invite.subjectName} is ${invite.workSummary}.`;
+    const { claimId } = await createClaim({
+      subject: invite.subjectUri,
+      claim: 'is_vouched_for',
+      statement: data.comment
+        ? `${confirmation}\n\n${data.comment}`
+        : confirmation,
+      author: data.referenceName,
+      howKnown: 'FIRST_HAND',
+      effectiveDate: new Date().toISOString(),
+    });
+    await markResponded(params.token, claimId);
+    return { status: 'confirmed' as const, claimId };
   },
 );

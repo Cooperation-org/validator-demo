@@ -16,8 +16,3 @@ export type VerificationFormValues = {
   authorized: boolean;
   acceptedTerms: boolean;
 };
-
-export type DemoSubmissionResult =
-  | { ok: true; mode: 'demo'; status: 'not_sent'; message: string }
-  | { ok: false; mode: 'demo'; message: string };
-

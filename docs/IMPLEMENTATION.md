@@ -34,11 +34,29 @@ Per generated root `AGENTS.md`, check `node_modules/@modern-js/app-tools/docs/ll
 ## Backend (Modern.js BFF)
 
 - `@modern-js/plugin-bff` enabled in `modern.config.ts`. Same app, same `npm run dev` / `build` / `serve`; one Node process.
-- `api/lambda/*.ts`: HTTP endpoints, routed under `/api`. The frontend imports them via `@api/*`.
+- `api/lambda/*.ts`: HTTP endpoints under `/api`. Pages import them via `@api/*`.
 - `api/_lib/`: server-only helpers, not routed.
 - Config: `.env` (copy `.env.example`). Never imported by `src/`.
 
-| Endpoint                    | Does                                                                                                                                                                               | Reuses                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/candidate?email=` | All LinkedClaims about `mailto:<email>`, including identities linked by SAME_AS                                                                                                    | trust_claim_backend `GET /api/claims/subject/:uri`                                                                        |
-| `POST /api/endorsements`    | Creates a LinkedTrust testimonial request about `mailto:<candidateEmail>`, emails the link to the reference. The reference's answer is an `is_vouched_for` claim with that subject | trust_claim_backend `POST /api/testimonial-requests` + its `/t/:token` answer page; SMTP env names from validator-service |
+### Modes
+
+- `LINKEDTRUST_MODE=mock`: claims and testimonial requests are JSON files in `DATA_DIR`, same fields as trust_claim_backend. Used while dev.linkedtrust.us lacks testimonial requests (its build predates them).
+- `LINKEDTRUST_MODE=api`: the same operations against `LINKEDTRUST_API_URL`, authenticated with this app's LinkedTrust client ID and secret.
+- `EMAIL_MODE=smtp` sends; `EMAIL_MODE=log` prints each email, link included, to the server log.
+
+### Endpoints
+
+| Endpoint                                            | Does                                                                                                                                                                    | Reuses                                                                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/org-email`                               | Emails a single-use link (24 h) to an address at the organization domain                                                                                                | Token scheme from trust_claim_backend testimonial requests; pending links are this app's own records in `DATA_DIR` |
+| `GET /api/org-email/:token`, `POST .../confirm`     | Uses the link once; writes `RELATED_TO` / `relationship:same-as` claim from `mailto:<candidate>` to `mailto:<org email>`                                                | LinkedTrust identity-link claim shape                                                                              |
+| `POST /api/endorsements`                            | Creates a testimonial request about `mailto:<candidate>`, emails the reference a link to `/endorse/:token`                                                              | trust_claim_backend `POST /api/testimonial-requests`                                                               |
+| `GET /api/endorsements/:token`, `POST .../response` | Reference answers two yes/no questions (exact email, role). Yes to both writes an `is_vouched_for` claim and marks the request responded; otherwise nothing is recorded | trust_claim_backend `GET /api/testimonial-requests/:token`, `POST /api/claims`, `POST .../responded`               |
+| `GET /api/candidate?email=`                         | All claims about `mailto:<email>`                                                                                                                                       | trust_claim_backend `GET /api/claims/subject/:uri`                                                                 |
+
+### Pages
+
+- `/`: candidate form, both methods.
+- `/verify/:token`: organization-email confirmation (a button, so mail scanners opening the link do not use it).
+- `/endorse/:token`: reference answer page.
+- `/lookup?email=`: what is recorded for a candidate email.
