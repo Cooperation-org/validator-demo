@@ -7,9 +7,10 @@
     "baseUrl": "./",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@api/*": ["./api/lambda/*"]
     }
   },
-  "include": ["src", "shared", "config", "modern.config.ts", "server"],
+  "include": ["src", "shared", "config", "modern.config.ts", "server", "api"],
   "exclude": ["**/node_modules"]
 }

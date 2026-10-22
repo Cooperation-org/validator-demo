@@ -31,3 +31,13 @@ Implement a dedicated API module with native fetch for `POST /api/v0/validate`, 
 
 Per generated root `AGENTS.md`, check `node_modules/@modern-js/app-tools/docs/llms.txt` and its version-matched data-loader/data-action pages before adjusting framework integrations. The implementation here follows the public Modern.js 3 Data Fetching and Data Writing conventions; the installed local docs should take precedence.
 
+## Backend (Modern.js BFF)
+
+- `@modern-js/plugin-bff` enabled in `modern.config.ts`. Same app, same `npm run dev` / `build` / `serve`; one Node process.
+- `api/lambda/*.ts`: HTTP endpoints, routed under `/api`. The frontend imports them via `@api/*`.
+- `api/_lib/`: server-only helpers, not routed.
+- Config: `.env` (copy `.env.example`). Never imported by `src/`.
+
+| Endpoint                    | Does                                                                            | Reuses                                             |
+| --------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `GET /api/candidate?email=` | All LinkedClaims about `mailto:<email>`, including identities linked by SAME_AS | trust_claim_backend `GET /api/claims/subject/:uri` |
