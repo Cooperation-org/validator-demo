@@ -72,4 +72,4 @@ sudo systemctl restart tmp-validator-demo
 ```
 
 - `deploy/tmp-validator-demo.service`: systemd unit (`modern serve`, `.env` as EnvironmentFile).
-- `deploy/nginx-validator-demo.conf`: goes to `/etc/nginx/app-proxies/validator-demo.conf`. Under a prefix the app serves pages at `<prefix>/`, but its API at `/api/` and assets at `/static/`; nginx maps `<prefix>/api/` and `<prefix>/static/` to those. The browser adds the prefix to API calls (`src/bff-client.ts`).
+- `deploy/nginx-validator-demo.conf`: goes to `/etc/nginx/app-proxies/validator-demo.conf`. Under a prefix the app serves pages and assets at `<prefix>/`, but its API at `/api/`; nginx maps `<prefix>/api/` to it. `APP_BASE_PATH` must be set at serve time too (the unit reads `.env`). The browser adds the prefix to API calls (`src/bff-client.ts`).
