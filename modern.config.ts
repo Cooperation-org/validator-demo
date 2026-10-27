@@ -10,6 +10,11 @@ const baseUrl = process.env.APP_BASE_PATH?.replace(/\/$/, '') || undefined;
 export default defineConfig({
   plugins: [appTools(), bffPlugin()],
   builderPlugins: [pluginTailwindcss()],
+  html: {
+    title: 'Validator demo',
+    favicon: './src/assets/icon-192.png',
+    appIcon: { icons: [{ src: './src/assets/icon-192.png', size: 192 }] },
+  },
   server: {
     ssr: false,
     baseUrl,
