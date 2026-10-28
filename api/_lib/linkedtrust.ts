@@ -130,6 +130,12 @@ const INVITE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const nextId = (rows: { id: number }[]) =>
   rows.reduce((max, row) => Math.max(max, row.id), 0) + 1;
 
+// Page showing one claim on the LinkedTrust site, or null when claims are
+// mocked. The LinkedTrust frontend is served from the same host as its API
+// (dev.linkedtrust.us, live.linkedtrust.us), at /claims/:id.
+export const claimPageUrl = (claimId: number): string | null =>
+  isMock('CLAIMS') ? null : `${apiBase()}/claims/${claimId}`;
+
 // ---- operations -----------------------------------------------------------
 
 // GET /api/claims/subject/:uri
