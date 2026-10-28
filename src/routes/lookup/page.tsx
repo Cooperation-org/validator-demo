@@ -15,6 +15,15 @@ type Claim = Candidate['claims'][number];
 
 const strip = (uri?: string | null) => (uri ?? '').replace(/^mailto:/, '');
 
+// The typed name of the endorser. dev.linkedtrust.us drops `author`, so fall
+// back to the name at the start of the statement this app writes:
+// "<name> (<email>) confirms that …".
+function endorserName(claim: Claim) {
+  if (claim.author) return claim.author;
+  const match = claim.statement?.match(/^(.+?)(?: \([^()]*\))? confirms that /);
+  return match ? match[1] : 'a reference';
+}
+
 // One line per claim, in the terms a person checking a candidate cares about.
 function describe(claim: Claim) {
   if (claim.claim === 'RELATED_TO' && claim.aspect === 'relationship:same-as') {
@@ -25,7 +34,7 @@ function describe(claim: Claim) {
     const at = claim.sourceURI?.startsWith('mailto:')
       ? ` at ${strip(claim.sourceURI)}`
       : '';
-    return `Endorsed by ${claim.author ?? 'a reference'}${at}`;
+    return `Endorsed by ${endorserName(claim)}${at}`;
   }
   return claim.claim;
 }
