@@ -1,6 +1,6 @@
 import { Api, Data, Get, Params, Post } from '@modern-js/plugin-bff/server';
 import { z } from 'zod';
-import { appUrl, linkEmail, sendEmail } from '../_lib/email';
+import { appUrl, linkEmail, sendEmail, senderAddress } from '../_lib/email';
 import {
   createClaim,
   createTestimonialRequest,
@@ -30,6 +30,7 @@ export const requestEndorsement = Api(
       subjectUri: emailSubjectUri(data.candidateEmail),
       subjectName: data.candidateName,
       recipientName: data.referenceName,
+      recipientProfile: emailSubjectUri(data.referenceEmail),
       requesterName: data.candidateName,
       workSummary: role(data.organizationName, data.organizationDomain),
       note: data.note,
@@ -53,7 +54,14 @@ export const requestEndorsement = Api(
       ),
     });
     // The link goes only to the reference; returning it would let the candidate answer for them.
-    return { inviteId: invite.id, email };
+    return {
+      inviteId: invite.id,
+      email,
+      from: senderAddress(),
+      lookupUrl: appUrl(
+        `/lookup?email=${encodeURIComponent(data.candidateEmail)}`,
+      ),
+    };
   },
 );
 
@@ -78,7 +86,8 @@ export const getEndorsement = Api(
 
 // POST /api/endorsements/:token/response
 // Only a yes to both questions becomes a claim: an `is_vouched_for` LinkedClaim
-// about mailto:<candidateEmail>, authored by the reference.
+// about mailto:<candidateEmail>, authored by the reference, with
+// sourceURI = mailto:<reference email> (the address the link was sent to).
 export const respondToEndorsement = Api(
   Post('/endorsements/:token/response'),
   Params(TokenParams),
@@ -99,7 +108,9 @@ export const respondToEndorsement = Api(
       return { status: 'declined' as const };
 
     const candidateEmail = invite.subjectUri.replace(/^mailto:/, '');
-    const confirmation = `${data.referenceName} confirms that ${candidateEmail} is ${invite.subjectName}'s email address and that ${invite.subjectName} is ${invite.workSummary}.`;
+    // The reference's email is what the link proves; the typed name is not checked.
+    const referenceEmail = invite.recipientProfile?.replace(/^mailto:/, '');
+    const confirmation = `${data.referenceName}${referenceEmail ? ` (${referenceEmail})` : ''} confirms that ${candidateEmail} is ${invite.subjectName}'s email address and that ${invite.subjectName} is ${invite.workSummary}.`;
     const { claimId } = await createClaim({
       subject: invite.subjectUri,
       claim: 'is_vouched_for',
@@ -107,6 +118,7 @@ export const respondToEndorsement = Api(
         ? `${confirmation}\n\n${data.comment}`
         : confirmation,
       author: data.referenceName,
+      sourceURI: invite.recipientProfile ?? undefined,
       howKnown: 'FIRST_HAND',
       effectiveDate: new Date().toISOString(),
     });

@@ -33,7 +33,15 @@ const initialValues: VerificationFormValues = {
 };
 
 type Result =
-  | { ok: true; sentTo: string; emailSent: boolean; candidateEmail: string }
+  | {
+      ok: true;
+      method: VerificationMethod;
+      sentTo: string;
+      emailSent: boolean;
+      from: string;
+      organizationName: string;
+      lookupUrl: string;
+    }
   | { ok: false; message: string };
 
 function Field({
@@ -111,9 +119,12 @@ export default function VerificationPage() {
         } else {
           setResult({
             ok: true,
+            method: 'organization-email',
             sentTo: values.organizationEmail,
             emailSent: response.email.sent,
-            candidateEmail: values.email,
+            from: response.from,
+            organizationName: values.organizationName,
+            lookupUrl: response.lookupUrl,
           });
         }
       } else {
@@ -127,9 +138,12 @@ export default function VerificationPage() {
         });
         setResult({
           ok: true,
+          method: 'reference',
           sentTo: values.referenceEmail,
           emailSent: response.email.sent,
-          candidateEmail: values.email,
+          from: response.from,
+          organizationName: values.organizationName,
+          lookupUrl: response.lookupUrl,
         });
       }
     } catch (error) {
@@ -368,18 +382,20 @@ export default function VerificationPage() {
             <Notice
               tone="success"
               title={
-                result.emailSent
-                  ? `Email sent to ${result.sentTo}`
-                  : `Email to ${result.sentTo} written to the server log (not sent)`
+                (result.method === 'reference'
+                  ? 'Endorsement request'
+                  : 'Confirmation link') +
+                (result.emailSent
+                  ? ` sent to ${result.sentTo}`
+                  : ` to ${result.sentTo} written to the server log (not sent)`)
               }
             >
-              Nothing is recorded until the link in that email is used.{' '}
-              <Link
-                className="underline"
-                to={`/lookup?email=${encodeURIComponent(result.candidateEmail)}`}
-              >
-                Check status
-              </Link>
+              {result.method === 'reference'
+                ? `Please let your contact know to look for an email from ${result.from} asking to confirm that you are an administrator of ${result.organizationName}. Once they have done so you will be able to look up your endorsements at `
+                : `Look for an email from ${result.from} and open the link in it to confirm. Once you have done so you will be able to look up your verifications at `}
+              <a className="break-all underline" href={result.lookupUrl}>
+                {decodeURIComponent(result.lookupUrl)}
+              </a>
             </Notice>
           ) : (
             <Notice tone="error" title="Not sent">

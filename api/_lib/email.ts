@@ -72,6 +72,9 @@ export function linkEmail(
   return { text, html };
 }
 
+// The address emails come from, shown to people so they know what to look for.
+export const senderAddress = () => required('SES_FROM_EMAIL');
+
 // Absolute URL of a page in this app, for links in emails.
 export const appUrl = (pathname: string) => {
   const base = required('APP_URL').replace(/\/$/, '');
