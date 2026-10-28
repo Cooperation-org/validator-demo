@@ -1,5 +1,5 @@
 import { Api, Data, Get, Params, Post } from '@modern-js/plugin-bff/server';
-import { appUrl, linkEmail, sendEmail } from '../_lib/email';
+import { appUrl, linkEmail, sendEmail, senderAddress } from '../_lib/email';
 import { createClaim, emailSubjectUri } from '../_lib/linkedtrust';
 import { readAll, update } from '../_lib/store';
 import { hashToken, makeToken } from '../_lib/tokens';
@@ -63,7 +63,14 @@ export const requestOrgEmailLink = Api(
         appUrl(`/verify/${token}`),
       ),
     });
-    return { status: 'sent' as const, email };
+    return {
+      status: 'sent' as const,
+      email,
+      from: senderAddress(),
+      lookupUrl: appUrl(
+        `/lookup?email=${encodeURIComponent(data.candidateEmail)}`,
+      ),
+    };
   },
 );
 

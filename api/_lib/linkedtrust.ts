@@ -35,6 +35,8 @@ export type TestimonialRequest = {
   subjectUri: string;
   subjectName: string | null;
   recipientName: string | null;
+  // How to reach the recipient; this app stores mailto:<reference email>.
+  recipientProfile: string | null;
   workSummary: string | null;
   note: string | null;
   requesterName: string | null;
@@ -46,6 +48,7 @@ export type NewTestimonialRequest = {
   subjectUri: string;
   subjectName?: string;
   recipientName?: string;
+  recipientProfile?: string;
   workSummary?: string;
   note?: string;
   requesterName?: string;
@@ -177,6 +180,7 @@ export async function createTestimonialRequest(
           subjectUri: request.subjectUri,
           subjectName: request.subjectName ?? null,
           recipientName: request.recipientName ?? null,
+          recipientProfile: request.recipientProfile ?? null,
           workSummary: request.workSummary ?? null,
           note: request.note ?? null,
           requesterName: request.requesterName ?? null,
@@ -212,6 +216,7 @@ export async function getTestimonialRequest(
       subjectUri: found.subjectUri,
       subjectName: found.subjectName,
       recipientName: found.recipientName,
+      recipientProfile: found.recipientProfile ?? null,
       workSummary: found.workSummary,
       note: found.note,
       requesterName: found.requesterName,

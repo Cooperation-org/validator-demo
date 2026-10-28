@@ -20,8 +20,13 @@ function describe(claim: Claim) {
   if (claim.claim === 'RELATED_TO' && claim.aspect === 'relationship:same-as') {
     return `Controls ${strip(claim.object)} (opened a one-time link sent there)`;
   }
-  if (claim.claim === 'is_vouched_for')
-    return `Endorsed by ${claim.author ?? 'a reference'}`;
+  if (claim.claim === 'is_vouched_for') {
+    // The email is what the endorsement link proved; the name is as typed.
+    const at = claim.sourceURI?.startsWith('mailto:')
+      ? ` at ${strip(claim.sourceURI)}`
+      : '';
+    return `Endorsed by ${claim.author ?? 'a reference'}${at}`;
+  }
   return claim.claim;
 }
 
