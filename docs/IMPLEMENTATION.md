@@ -40,8 +40,9 @@ Per generated root `AGENTS.md`, check `node_modules/@modern-js/app-tools/docs/ll
 
 ### Modes
 
-- `LINKEDTRUST_MODE=mock`: claims and testimonial requests are JSON files in `DATA_DIR`, same fields as trust_claim_backend. Used while dev.linkedtrust.us lacks testimonial requests (its build predates them).
-- `LINKEDTRUST_MODE=api`: the same operations against `LINKEDTRUST_API_URL`, authenticated with this app's LinkedTrust client ID and secret.
+- `LINKEDTRUST_CLAIMS` and `LINKEDTRUST_INVITES`, each `api` (calls `LINKEDTRUST_API_URL`) or `mock` (JSON files in `DATA_DIR`, same fields as trust_claim_backend).
+- Claims: dev.linkedtrust.us accepts `POST /api/claims` without credentials. With `LINKEDTRUST_CLIENT_ID`/`SECRET` set they are sent and the backend records this app as issuer. dev's build drops `author`; the lookup page reads the endorser's name from the start of the statement.
+- Invites (testimonial requests): `api` needs the client ID and secret. dev.linkedtrust.us predates testimonial requests, so with dev they stay `mock`.
 - `EMAIL_MODE=smtp` sends; `EMAIL_MODE=log` prints each email, link included, to the server log.
 
 ### Endpoints

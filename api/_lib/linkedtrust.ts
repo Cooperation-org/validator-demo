@@ -2,9 +2,10 @@
 // testimonial requests. A person is addressed by `mailto:<email>`, the same
 // subject URI the backend's identity linking uses.
 //
-// LINKEDTRUST_MODE=api  calls the backend at LINKEDTRUST_API_URL.
-// LINKEDTRUST_MODE=mock keeps the same records in JSON files (see store.ts),
-//                       for demos while the dev backend lacks testimonial requests.
+// Two settings, each "api" (the backend at LINKEDTRUST_API_URL) or "mock" (the
+// same records in JSON files, see store.ts):
+//   LINKEDTRUST_CLAIMS   claims: createClaim, getClaimsBySubject
+//   LINKEDTRUST_INVITES  testimonial requests (dev.linkedtrust.us has none yet)
 import { readAll, update } from './store';
 import { hashToken, makeToken } from './tokens';
 
@@ -57,10 +58,11 @@ export type NewTestimonialRequest = {
 export const emailSubjectUri = (email: string) =>
   `mailto:${email.trim().toLowerCase()}`;
 
-const isMock = () => {
-  const mode = process.env.LINKEDTRUST_MODE;
+const isMock = (records: 'CLAIMS' | 'INVITES') => {
+  const name = `LINKEDTRUST_${records}`;
+  const mode = process.env[name];
   if (mode !== 'api' && mode !== 'mock')
-    throw new Error('LINKEDTRUST_MODE must be "api" or "mock"');
+    throw new Error(`${name} must be "api" or "mock"`);
   return mode === 'mock';
 };
 
@@ -73,10 +75,17 @@ const apiBase = () => {
 };
 
 // Server-to-server auth as this app's registered LinkedTrust client.
-const clientHeaders = () => {
+// 'required': testimonial requests refuse anonymous callers.
+// 'optional': claims are accepted without it; with it, the backend records
+//             this app as the claim's issuer.
+type ClientAuth = 'required' | 'optional' | 'none';
+
+const clientHeaders = (auth: ClientAuth): Record<string, string> => {
   const clientId = process.env.LINKEDTRUST_CLIENT_ID;
   const clientSecret = process.env.LINKEDTRUST_CLIENT_SECRET;
+  if (auth === 'none') return {};
   if (!clientId || !clientSecret) {
+    if (auth === 'optional') return {};
     throw new Error(
       'LINKEDTRUST_CLIENT_ID and LINKEDTRUST_CLIENT_SECRET must be set',
     );
@@ -88,13 +97,13 @@ async function call<T>(
   method: string,
   route: string,
   body?: unknown,
-  auth = false,
+  auth: ClientAuth = 'none',
 ): Promise<T> {
   const response = await fetch(`${apiBase()}${route}`, {
     method,
     headers: {
       'content-type': 'application/json',
-      ...(auth ? clientHeaders() : {}),
+      ...clientHeaders(auth),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -125,7 +134,7 @@ const nextId = (rows: { id: number }[]) =>
 
 // GET /api/claims/subject/:uri
 export async function getClaimsBySubject(uri: string): Promise<SubjectClaims> {
-  if (isMock()) {
+  if (isMock('CLAIMS')) {
     const claims = (await readAll<LinkedClaim>('claims')).filter(
       (claim) => claim.subject === uri,
     );
@@ -147,7 +156,7 @@ export async function getClaimsBySubject(uri: string): Promise<SubjectClaims> {
 export async function createClaim(
   claim: NewClaim,
 ): Promise<{ claimId: number }> {
-  if (isMock()) {
+  if (isMock('CLAIMS')) {
     return update<LinkedClaim, { claimId: number }>('claims', (rows) => {
       const id = nextId(rows);
       rows.push({ ...claim, id, createdAt: new Date().toISOString() });
@@ -158,7 +167,7 @@ export async function createClaim(
     'POST',
     '/api/claims',
     claim,
-    true,
+    'optional',
   );
   return { claimId: body.claim.id };
 }
@@ -167,7 +176,7 @@ export async function createClaim(
 export async function createTestimonialRequest(
   request: NewTestimonialRequest,
 ): Promise<{ token: string; id: number }> {
-  if (isMock()) {
+  if (isMock('INVITES')) {
     const token = makeToken();
     return update<StoredTestimonialRequest, { token: string; id: number }>(
       'testimonial-requests',
@@ -197,7 +206,7 @@ export async function createTestimonialRequest(
     'POST',
     '/api/testimonial-requests',
     request,
-    true,
+    'required',
   );
   return { token: body.token, id: body.id };
 }
@@ -206,7 +215,7 @@ export async function createTestimonialRequest(
 export async function getTestimonialRequest(
   token: string,
 ): Promise<TestimonialRequest | 'expired' | null> {
-  if (isMock()) {
+  if (isMock('INVITES')) {
     const found = (
       await readAll<StoredTestimonialRequest>('testimonial-requests')
     ).find((row) => row.tokenHash === hashToken(token));
@@ -241,7 +250,7 @@ export async function markResponded(
   token: string,
   claimId: number,
 ): Promise<void> {
-  if (isMock()) {
+  if (isMock('INVITES')) {
     await update<StoredTestimonialRequest, void>(
       'testimonial-requests',
       (rows) => {
