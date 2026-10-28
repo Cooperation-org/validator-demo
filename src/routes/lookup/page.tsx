@@ -126,7 +126,20 @@ export default function LookupPage() {
                     {claim.effectiveDate
                       ? new Date(claim.effectiveDate).toLocaleString()
                       : null}{' '}
-                    · claim #{claim.id}
+                    ·{' '}
+                    {claim.pageUrl ? (
+                      <a
+                        className="underline hover:text-slate-700"
+                        href={claim.pageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        claim #{claim.id}
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                    ) : (
+                      `claim #${claim.id}`
+                    )}
                   </p>
                 </li>
               ))}
